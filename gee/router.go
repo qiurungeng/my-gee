@@ -1,9 +1,9 @@
 package gee
 
 import (
-	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"strings"
 )
 
@@ -31,7 +31,7 @@ func (r *router) addRoute(method string, pattern string, handler HandleFunc)  {
 	r.roots[method].insert(pattern, parts, 0)
 	r.handlers[key] = handler
 
-	log.Printf("Route %4s - %s", method, pattern)
+	log.Printf("Route %4s - %s , ROUTER:%s", method, pattern, reflect.TypeOf(r))
 }
 
 // 从路由数匹配路由节点
@@ -66,7 +66,6 @@ func (r *router) getRoute(method string, path string) (*node, map[string]string)
 
 // 路由处理context
 func (r router) handle(ctx *Context) {
-	fmt.Println("method: " + ctx.Method + ", path: " + ctx.Path)
 	node, params := r.getRoute(ctx.Method, ctx.Path)
 	if node != nil{
 		ctx.Params = params

@@ -7,7 +7,11 @@ import (
 type HandleFunc func(ctx *Context)
 
 type Engine struct {
+	//Engine 的根路由分组，默认自带的
+	*RouterGroup
 	router *router
+	//Engine 上的所有路由分组
+	allGroups []*RouterGroup
 }
 
 func (engine Engine) ServeHTTP(w http.ResponseWriter, req *http.Request)  {
@@ -17,13 +21,16 @@ func (engine Engine) ServeHTTP(w http.ResponseWriter, req *http.Request)  {
 
 // 构造方法
 func New() *Engine {
-	return &Engine{
-		router: newRouter(),
-	}
+	engine := &Engine{ router: newRouter() }
+	engine.RouterGroup = &RouterGroup{engine: engine} //Engine 的根路由分组，默认自带的
+	engine.allGroups = []*RouterGroup{engine.RouterGroup}
+	return engine
 }
 
 // 添加路由
 func (engine Engine) addRoute(method string, pattern string, handler HandleFunc) {
+	//fmt.Println(reflect.TypeOf(engine))
+	//engine.routerGroupPrivateMethod("add route: " + method + pattern)
 	engine.router.addRoute(method, pattern, handler)
 }
 
