@@ -17,6 +17,14 @@ func main() {
 		ctx.String(http.StatusOK, "你好啊， %s，您访问的地址是：%s。", ctx.Query("name"), ctx.Path)
 	})
 
+	engine.GET("/hello/:name", func(ctx *gee.Context) {
+		ctx.String(http.StatusOK, "你好啊， %s，您访问的地址是：%s。", ctx.Param("name"), ctx.Path)
+	})
+
+	engine.GET("/assets/*filepath", func(c *gee.Context) {
+		c.JSON(http.StatusOK, gee.H{"filepath": c.Param("filepath")})
+	})
+
 	engine.POST("/login", func(ctx *gee.Context) {
 		ctx.JSON(http.StatusOK, gee.H{
 			"username": ctx.PostForm("username"),

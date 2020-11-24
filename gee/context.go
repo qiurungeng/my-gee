@@ -15,8 +15,13 @@ type Context struct {
 	// request info
 	Path string
 	Method string
+	Params map[string]string	// 提供对路由参数的访问
 	// response info
 	StatusCode int
+}
+
+func (c *Context) Param(key string) string {
+	return c.Params[key]
 }
 
 // Constructor
