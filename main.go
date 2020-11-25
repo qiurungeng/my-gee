@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"gee"
+	"html/template"
 	"log"
 	"net/http"
 	"time"
@@ -10,40 +12,35 @@ import (
 func main() {
 	engine := gee.New()
 
-	engine.GET("/index", func(ctx *gee.Context) {
-		ctx.HTML(http.StatusOK, "<h1>INDEX PAGE</h1>")
+	engine.AddMiddlewares(gee.Logger())
+
+	engine.SetFuncMap(template.FuncMap{
+		"FormatAsDate": FormatAsDate,
 	})
+	engine.LoadHTMLGlob("templates/*")
+	engine.Static("/assets", "./static")
 
-	v1 := engine.NewRouterGroup("/v1")
-	v1.AddMiddlewares(gee.Logger())
+	// 注册路由
 	{
-		v1.GET("/", func(ctx *gee.Context) {
-			ctx.HTML(http.StatusOK,"<h1>你好啊，这是首页，路径是: /</h1>")
+		engine.GET("/", func(ctx *gee.Context) {
+			ctx.HTML(http.StatusOK, "css.tmpl", nil)
 		})
-		v1.GET("/hello", func(ctx *gee.Context) {
-			ctx.String(http.StatusOK, "你好啊， %s，您访问的地址是：%s。", ctx.Query("name"), ctx.Path)
+		engine.GET("/students", func(ctx *gee.Context) {
+			ctx.HTML(http.StatusOK, "arr.tmpl", gee.H{
+				"title": "gee",
+				"stuArr": [2]*student{
+					{Name: "Tom", Age: 15},
+					{Name: "Jerry", Age: 3},
+				},
+			})
 		})
-	}
-
-	v2 := engine.NewRouterGroup("/v2")
-	v2.AddMiddlewares(logMiddlewareForV2())
-	{
-		v2.GET("/hello/:name", func(ctx *gee.Context) {
-			ctx.String(http.StatusOK, "你好啊， %s，您访问的地址是：%s。", ctx.Param("name"), ctx.Path)
-		})
-
-		v2.GET("/assets/*filepath", func(c *gee.Context) {
-			c.JSON(http.StatusOK, gee.H{"filepath": c.Param("filepath")})
-		})
-
-		v2.POST("/login", func(ctx *gee.Context) {
-			ctx.JSON(http.StatusOK, gee.H{
-				"username": ctx.PostForm("username"),
-				"password": ctx.PostForm("password"),
+		engine.GET("/data", func(ctx *gee.Context) {
+			ctx.HTML(http.StatusOK, "custom_func.tmpl", gee.H{
+				"title": "gee",
+				"now": time.Now(),
 			})
 		})
 	}
-
 
 	err := engine.Run(":9999")
 	log.Fatal(err)
@@ -53,9 +50,7 @@ func logMiddlewareForV2() gee.HandleFunc {
 	return func(c *gee.Context) {
 		// Start timer
 		t := time.Now()
-
 		c.Next()
-
 		// 若发生服务内部错误，快速失败，c.index = len(c.handlers)
 		if c.StatusCode != http.StatusOK {
 			c.Fail(500, "Internal Server Error")
@@ -63,4 +58,15 @@ func logMiddlewareForV2() gee.HandleFunc {
 		// Calculate resolution time
 		log.Printf("[%d] %s in %v for group v2", c.StatusCode, c.Req.RequestURI, time.Since(t))
 	}
+}
+
+
+type student struct {
+	Name string
+	Age int8
+}
+
+func FormatAsDate(t time.Time) string {
+	year, month, day := t.Date()
+	return fmt.Sprintf("%d-%02d-%02d", year, month, day)
 }

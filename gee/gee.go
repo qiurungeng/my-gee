@@ -1,6 +1,7 @@
 package gee
 
 import (
+	"html/template"
 	"log"
 	"net/http"
 	"strings"
@@ -10,14 +11,14 @@ import (
 type HandleFunc func(ctx *Context)
 
 type Engine struct {
-	//Engine 的根路由分组，默认自带的
-	*RouterGroup
-	router *router
-	//Engine 上的所有路由分组
-	allGroups []*RouterGroup
+	*RouterGroup						//Engine 的根路由分组，默认自带的
+	router 			*router
+	allGroups 		[]*RouterGroup 		//Engine 上的所有路由分组
+	htmlTemplates 	*template.Template	//for html render
+	funcMap 		template.FuncMap	//for html render
 }
 
-func (engine Engine) ServeHTTP(w http.ResponseWriter, req *http.Request)  {
+func (engine *Engine) ServeHTTP(w http.ResponseWriter, req *http.Request)  {
 	// 为context添加其所属路由分组所适用的所有中间件
 	var middlewares []HandleFunc
 	for _, group := range engine.allGroups {
@@ -27,6 +28,7 @@ func (engine Engine) ServeHTTP(w http.ResponseWriter, req *http.Request)  {
 	}
 	c := newContext(w, req)
 	c.handlers = middlewares
+	c.engine = engine
 	engine.router.handle(c)
 }
 
@@ -38,29 +40,27 @@ func New() *Engine {
 	return engine
 }
 
-// 添加路由
-func (engine Engine) addRoute(method string, pattern string, handler HandleFunc) {
-	//fmt.Println(reflect.TypeOf(engine))
-	//engine.routerGroupPrivateMethod("add route: " + method + pattern)
-	engine.router.addRoute(method, pattern, handler)
-}
-
-func (engine Engine) GET(pattern string, handler HandleFunc) {
-	engine.addRoute("GET", pattern, handler)
-}
-
-func (engine Engine) POST(pattern string, handler HandleFunc) {
-	engine.addRoute("POST", pattern, handler)
-}
-
-func (engine Engine) Run(addr string) (err error) {
+// 启动服务
+func (engine *Engine) Run(addr string) (err error) {
 	return http.ListenAndServe(addr, engine)
 }
 
 
+/**************** Template 渲染 相关方法 *******************
+ */
+
+// 自定义模板渲染函数
+func (engine *Engine) SetFuncMap(funcMap template.FuncMap) {
+	engine.funcMap = funcMap
+}
+func (engine *Engine) LoadHTMLGlob(pattern string) {
+	engine.htmlTemplates = template.Must(template.
+			New("").
+			Funcs(engine.funcMap).	// 函数集，可在模板渲染过程使用
+			ParseGlob(pattern))		// pattern 匹配文件
+}
 
 //----------- Util Func -----------
-
 func Logger() HandleFunc {
 	return func(c *Context) {
 		// Start timer

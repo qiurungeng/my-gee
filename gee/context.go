@@ -21,6 +21,8 @@ type Context struct {
 	// handlers = middlewares + 原本路由所指向的函数
 	handlers []HandleFunc
 	index    int
+	// Engine
+	engine *Engine
 }
 
 func (c *Context) Param(key string) string {
@@ -91,10 +93,12 @@ func (c *Context) Data(code int, data []byte) {
 }
 
 // 设置 response body 具体内容(html字符串)
-func (c *Context) HTML(code int, html string) {
+func (c *Context) HTML(code int, name string, data interface{}) {
 	c.SetHeader("Content-Type", "text/html;charset=utf-8")	// 注意！utf-8
 	c.Status(code)
-	c.Writer.Write([]byte(html))
+	if err := c.engine.htmlTemplates.ExecuteTemplate(c.Writer, name, data); err != nil {
+		c.Fail(500, err.Error())
+	}
 }
 
 // Fail: 失败 Response 统一处理

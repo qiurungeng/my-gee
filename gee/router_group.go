@@ -1,5 +1,10 @@
 package gee
 
+import (
+	"net/http"
+	"path"
+)
+
 //分组控制(Group Control)是 Web 框架应提供的基础功能之一
 //所谓分组，是指路由的分组。如果没有路由分组，我们需要针对每一个路由进行控制
 //但是真实的业务场景中，往往某一组路由需要相似的处理
@@ -37,7 +42,7 @@ func (group *RouterGroup) AddMiddlewares(middlewares ...HandleFunc) {
 func (group *RouterGroup) addRoute(method string, subPattern string, handler HandleFunc) {
 	pattern := group.prefix + subPattern
 	//log.Printf("Route %4s - %s", method, pattern)
-	group.engine.addRoute(method, pattern, handler)
+	group.engine.router.addRoute(method, pattern, handler)
 }
 
 func (group *RouterGroup) GET(pattern string, handler HandleFunc) {
@@ -48,6 +53,36 @@ func (group *RouterGroup) POST(pattern string, handler HandleFunc) {
 	group.addRoute("POST", pattern, handler)
 }
 
-//func (group RouterGroup) routerGroupPrivateMethod(str string) {
-//	fmt.Printf("an instance of %s calls routerGroupPrivateMethod%s\n", reflect.TypeOf(group), str)
-//}
+
+
+/******************************静态资源处理**********************************/
+
+func (group *RouterGroup) createStaticHandler(relativePath string, fs http.FileSystem) HandleFunc {
+	absolutePath := path.Join(group.prefix, relativePath)
+
+	// fileServer: HandleFunc
+	// 去除请求URL的前缀: absolutePath
+	fileServer := http.StripPrefix(absolutePath, http.FileServer(fs))
+	return func(c *Context) {
+		file := c.Param("filepath")
+		// Check if file exists and/or if we have permission to access it
+		if _, err := fs.Open(file); err != nil {
+			c.Status(http.StatusNotFound)
+			return
+		}
+
+		fileServer.ServeHTTP(c.Writer, c.Req)
+	}
+}
+
+// 用户可以将磁盘上的某个文件夹root映射到路由relativePath, 例如:
+// r := gee.New()
+// r.Static("/assets", "/usr/blog/static")
+// 用户访问localhost:9999/assets/js/my.js，
+// 最终返回/usr/blog/static/js/my.js。
+func (group *RouterGroup) Static(relativePath string, root string) {
+	handler := group.createStaticHandler(relativePath, http.Dir(root))
+	urlPattern := path.Join(relativePath, "/*filepath")
+	// Register GET handlers
+	group.GET(urlPattern, handler)
+}
