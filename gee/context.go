@@ -17,7 +17,10 @@ type Context struct {
 	Method string
 	Params map[string]string	// 提供对路由参数的访问
 	// response info
-	StatusCode int
+	StatusCode 	int
+	// handlers = middlewares + 原本路由所指向的函数
+	handlers []HandleFunc
+	index    int
 }
 
 func (c *Context) Param(key string) string {
@@ -31,6 +34,15 @@ func newContext(w http.ResponseWriter, req *http.Request) *Context{
 		Req: req,
 		Path: req.URL.Path,
 		Method: req.Method,
+		index: -1,
+	}
+}
+
+func (c *Context) Next() {
+	c.index++
+	s := len(c.handlers)
+	for ; c.index < s ; c.index++{
+		c.handlers[c.index](c)
 	}
 }
 
@@ -83,4 +95,10 @@ func (c *Context) HTML(code int, html string) {
 	c.SetHeader("Content-Type", "text/html;charset=utf-8")	// 注意！utf-8
 	c.Status(code)
 	c.Writer.Write([]byte(html))
+}
+
+// Fail: 失败 Response 统一处理
+func (c *Context) Fail(code int, err string) {
+	c.index = len(c.handlers)
+	c.JSON(code, H{"message": err})
 }

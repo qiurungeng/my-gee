@@ -64,16 +64,23 @@ func (r *router) getRoute(method string, path string) (*node, map[string]string)
 }
 
 
-// 路由处理context
+// Context路由处理
 func (r router) handle(ctx *Context) {
 	node, params := r.getRoute(ctx.Method, ctx.Path)
+
+	// 将原本路由所指向的 handle 函数打包入 context.handlers
+	// 这样 handlers 将包含 中间件函数 及 handle 函数
 	if node != nil{
 		ctx.Params = params
 		key := ctx.Method + "-" + node.pattern
-		r.handlers[key](ctx)
+		ctx.handlers = append(ctx.handlers, r.handlers[key])
 	}else {
-		ctx.String(http.StatusNotFound, "404 NOT FOUND:%s\n", ctx.Path)
+		ctx.handlers = append(ctx.handlers, func(ctx *Context) {
+			ctx.String(http.StatusNotFound, "404 NOT FOUND:%s\n", ctx.Path)
+		})
 	}
+	// 链式调用
+	ctx.Next()
 }
 
 
