@@ -12,12 +12,16 @@ import (
 func main() {
 	engine := gee.New()
 
-	engine.AddMiddlewares(gee.Logger())
+	// 开启日志，错误恢复
+	engine.AddMiddlewares(gee.Logger(), gee.Recovery())
 
+	// 设置模板渲染函数集
 	engine.SetFuncMap(template.FuncMap{
 		"FormatAsDate": FormatAsDate,
 	})
+	// 设置模板文件路径
 	engine.LoadHTMLGlob("templates/*")
+	// 设置静态文件路径映射
 	engine.Static("/assets", "./static")
 
 	// 注册路由
@@ -39,6 +43,11 @@ func main() {
 				"title": "gee",
 				"now": time.Now(),
 			})
+		})
+		engine.GET("/testPanic", func(ctx *gee.Context) {
+			//将直接数组越界导致程序崩溃，测试错误恢复
+			names := []string{"大大大"}
+			ctx.String(http.StatusOK, names[100])
 		})
 	}
 
